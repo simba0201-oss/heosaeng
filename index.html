@@ -219,12 +219,12 @@
     // 어휘 퀴즈 상태
     let vocabScore = 0;
     let vocabTotal = 0;
-    let vocabTimeLeft = 300; 
+    let vocabTimeLeft = 300; // 5분
     let isVocabActive = false;
 
     // 요점 퀴즈 상태
     let qaQuizLevel = '초급'; // 초급, 중급, 상급
-    let qaTimeLeft = 300;
+    let qaTimeLeft = 180; // 초급 기본값 3분(180초)
     let isQaActive = false;
 
     let timerInterval = null;
@@ -284,7 +284,7 @@
         "상을 당한": "친족이 죽었을 때 추도하기 위해 활동을 자제하고 삼가는 일."
     };
 
-    // 키워드를 [괄호]로 묶은 학습지 원본 데이터 (퀴즈 파싱용)
+    // 키워드를 [괄호]로 묶은 학습지 원본 데이터
     const worksheetDataRaw = [
         { q: "허생전 작품의 특징과 비판 대상은?", a: "18C [조선 후기] 사회의 모습을 17C 후반으로 무대를 옮겨 당대의 취약점과 모순을 짚어냅니다. [지배 계층]의 [무능]과 [허위 의식]을 허생을 통해 강하게 비판하고 대응책을 제시하는 [풍자소설]입니다." },
         { q: "허생과 아내의 갈등 원인은?", a: "[경제적]으로 무능력하고 [글] 읽기에만 관심이 있는 허생과, 무능한 가장을 대신해 생계를 유지하며 [과거 급제](실리적 성격)를 요구하는 아내 간의 갈등입니다." },
@@ -528,7 +528,10 @@
     };
 
     window.resetQaQuiz = function() {
-        qaTimeLeft = 300;
+        if (qaQuizLevel === '초급') qaTimeLeft = 180;
+        else if (qaQuizLevel === '중급') qaTimeLeft = 240;
+        else qaTimeLeft = 300;
+        
         isQaActive = true;
         startTimer();
         renderQaQuiz();
@@ -536,7 +539,7 @@
 
     window.changeQaLevel = function(level) {
         qaQuizLevel = level;
-        resetQaQuiz(); // 난이도 변경 시 퀴즈 즉시 초기화
+        resetQaQuiz(); // 난이도 변경 시 퀴즈 즉시 초기화 및 시간 재설정
     };
 
     function renderText() {
@@ -710,9 +713,9 @@
                     <div class="quiz-timer">⏳ 남은 시간: <span id="qaTimerText" style="color:#dc2626;">${min}:${sec}</span></div>
                     <div>
                         <select id="qaLevelSelect" onchange="changeQaLevel(this.value)" style="padding: 6px; border-radius: 4px; border: 1px solid var(--border); font-size: 1rem; font-weight:bold; color:var(--text); margin-right: 10px;">
-                            <option value="초급" ${qaQuizLevel === '초급' ? 'selected' : ''}>🌱 초급</option>
-                            <option value="중급" ${qaQuizLevel === '중급' ? 'selected' : ''}>🌿 중급</option>
-                            <option value="상급" ${qaQuizLevel === '상급' ? 'selected' : ''}>🌳 상급</option>
+                            <option value="초급" ${qaQuizLevel === '초급' ? 'selected' : ''}>🌱 초급 (3분)</option>
+                            <option value="중급" ${qaQuizLevel === '중급' ? 'selected' : ''}>🌿 중급 (4분)</option>
+                            <option value="상급" ${qaQuizLevel === '상급' ? 'selected' : ''}>🌳 상급 (5분)</option>
                         </select>
                         <button class="quiz-reset-btn" onclick="resetQaQuiz()">초기화</button>
                     </div>
@@ -740,7 +743,6 @@
         panelContent.innerHTML = html;
     }
 
-    // 난이도에 맞춰 무작위 빈칸 뚫기 함수
     function createBlanks(text, level) {
         const matches = [...text.matchAll(/\[(.*?)\]/g)];
         if (matches.length === 0) return text;
@@ -750,7 +752,7 @@
         
         if (level === '초급') blankCount = Math.max(1, Math.floor(total * 0.35));
         else if (level === '중급') blankCount = Math.max(1, Math.floor(total * 0.7));
-        else blankCount = total; // 상급은 100% 빈칸
+        else blankCount = total;
 
         let indicesToBlank = matches.map((_, i) => i);
         indicesToBlank.sort(() => Math.random() - 0.5);
@@ -759,21 +761,18 @@
         let result = text;
         matches.forEach((match, i) => {
             if (indicesToBlank.includes(i)) {
-                // 빈칸 입력창으로 치환
                 const inputHtml = `<input type="text" class="qa-input" data-answer="${match[1]}" autocomplete="off" spellcheck="false" style="width:${match[1].length * 1.5 + 1}em;">`;
                 result = result.replace(match[0], inputHtml);
             } else {
-                // 빈칸으로 뚫리지 않은 일반 강조어
                 result = result.replace(match[0], `<span class="qa-highlight">${match[1]}</span>`);
             }
         });
         return result;
     }
 
-    // 요점 퀴즈 채점
     window.checkQaAnswers = function() {
         if (qaTimeLeft <= 0) return;
-        isQaActive = false; // 정답 확인 시 타이머 일시정지
+        isQaActive = false; 
         clearInterval(timerInterval);
 
         const inputs = document.querySelectorAll('.qa-input');
@@ -794,7 +793,6 @@
                 input.style.borderBottomColor = '#dc2626';
                 input.style.color = '#dc2626';
                 
-                // 틀린 경우 오른쪽에 정답 표시
                 if (!input.nextElementSibling || !input.nextElementSibling.classList.contains('qa-correction')) {
                     const corrSpan = document.createElement('span');
                     corrSpan.className = 'qa-correction';
@@ -846,7 +844,6 @@
                 e.target.classList.add('active');
                 currentMode = e.target.getAttribute('data-tab');
                 
-                // 탭 진입 시 타이머 관리
                 isVocabActive = false;
                 isQaActive = false;
                 clearInterval(timerInterval);
@@ -865,7 +862,6 @@
 
         searchInput.addEventListener('input', (e) => {
             if ((currentMode === 'vocabQuiz' || currentMode === 'qaQuiz') && e.target.value.trim() !== '') {
-                // 퀴즈 중에 검색하면 자동으로 일반 탭으로 이동
                 currentMode = currentMode === 'vocabQuiz' ? 'dict' : 'qa';
                 tabBtns.forEach(b => b.classList.remove('active'));
                 document.querySelector(`[data-tab="${currentMode}"]`).classList.add('active');
